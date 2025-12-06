@@ -2,19 +2,27 @@ from fastapi import FastAPI, Path, HTTPException, Query
 import json
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel ,Field, computed_field
-from typing import Annotated, Literal
+from typing import Annotated, Literal, Optional
 app = FastAPI()
 
 class Student(BaseModel):
     id:Annotated[int, Field(...,description='ID of the student',)]
     name:Annotated[str,Field(...,description='Name of the student')]
     course:Annotated[str,Field(...,description='Course in which student is enrolled')]
-    enrollment_no:Annotated[int,Field(...,gt=0,description='Enrollment no of the student')]
+    enrollment_no:Annotated[str,Field(...,description='Enrollment no of the student')]
     address:Annotated[str,Field(...,description='Address of the student.')]
     gender:Annotated[Literal['Male','Female'],Field(...,description='Gender of the student')]
     cgpa:Annotated[float,Field(...,gt=0,le=10,description='CGPA of the student')]
 
-    pass
+    
+class StudentUpdate(BaseModel):
+    name:Annotated[Optional[str],Field(default=None)]
+    course:Annotated[Optional[str],Field(default=None)]
+    enrollment_no:Annotated[Optional[str],Field(default=None)]
+    address:Annotated[Optional[str],Field(default=None)]
+    gender:Annotated[Optional[Literal['Male','Female']],Field(default=None)]
+    cgpa:Annotated[Optional[float],Field(gt=0,le=10,default=None)]
+
 
 def load_data():
     with open('student.json','r') as f:
@@ -76,6 +84,33 @@ def create(student:Student):
     save_obj(data)
 
     return JSONResponse(status_code=201,content={'message':'Student details added sucessfully!'})
+
+
+@app.put('/edit/{student_id}')
+def update_student(student_id:str,student_update:StudentUpdate):
+    data = load_data()
+    
+    existing_student_info = next((obj for obj in data if obj['id'] == int(student_id)) , None)
+    if not existing_student_info:
+        raise HTTPException(status_code=404, detail='Student not found!')
+    
+    updated_student_info = student_update.model_dump(exclude_unset=True)
+
+    for key, value in updated_student_info.items():
+        existing_student_info[key] = value
+    
+    
+    student_pydantic_obj = Student(**existing_student_info)
+    updated_data = student_pydantic_obj.model_dump()
+    
+    
+    for i, student in enumerate(data):
+        if student["id"] == int(student_id):
+            data[i] = updated_data
+            break
+
+    save_obj(data)
+    return JSONResponse(status_code=200, content={'message': 'Student updated successfully!'})
 
 
 if "__name__" == "__main__":
