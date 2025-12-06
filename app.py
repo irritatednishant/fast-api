@@ -112,6 +112,20 @@ def update_student(student_id:str,student_update:StudentUpdate):
     save_obj(data)
     return JSONResponse(status_code=200, content={'message': 'Student updated successfully!'})
 
+  
+@app.delete('/delete/{student_id}')
+def delete(student_id: int):
+    data = load_data()
+    del_student = next((i for i,obj in enumerate(data) if obj['id'] == int(student_id)),None)
+    if not del_student:
+        raise HTTPException(status_code=402, detail="Student not found!")
+    del data[del_student]
+    save_obj(data)
+
+    return JSONResponse(status_code=200, content={'message':'Student deleted successfully!'})
+
+
+
 
 if "__name__" == "__main__":
     data = load_data()
